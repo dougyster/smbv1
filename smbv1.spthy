@@ -10,27 +10,43 @@ begin
 // This theory models a message-revealing signature scheme. It defines the function symbols revealSign/2, revealVerify/3, getMessage/1, pk/1, and true, which are related by the equations revealVerify(revealSign(m,sk),m,pk(sk)) = true and getMessage(revealSign(m,sk)) = m.
 builtins: signing, revealing-signing
 
+rule SessionSetupRequest:
+  [ Out('SessionSetupRequest') ]
+  -->
+  [ St_AliceSessionSetup() ]
+
+// rule for session setup response
+rule SessionSetupResponse:
+  [ St_AliceSessionSetup(), In('SessionSetupResponse') ]
+  -->
+  [ St_SessionEstablished() ]
+
+// ensure session is established after setup
+lemma SessionEstablished:
+  exists-trace
+  "Ex #t. St_SessionEstablished() @ #t"
+
 // TCP connection
 // Alice -> Bob: sync
 // Bob -> Alice: sync-acknowledgement
 // Alice -> Bob: acknowledgement
 
-rule SYN:
+rule Sync:
   []
   --[ Begin() ]->
   [ St_AliceWait(), Out('SYN') ]
 
-rule SYNACK:
+rule SyncAck:
   [ In('SYN') ]
   -->
   [ St_BobWait(), Out('SYNACK') ]
 
-rule ACK:
+rule Ack:
   [ St_AliceWait(), In('SYNACK') ]
   -->
   [ Out('ACK') ]
 
-rule FIN:
+rule Finish:
   [ St_BobWait(), In('ACK') ]
   --[ End() ]->
   []
@@ -43,6 +59,20 @@ lemma BulletProof:
   all-traces
   "All #t1. Begin() @ #t1 ==> Ex #t2. End() @ #t2 & #t1 < #t2"
 
+rule DataTransfer:
+  [ St_SessionEstablished(), Send(data) ]
+  -->
+  [ Out('Data', data), St_DataSent() ]
+
+rule DataReceived:
+  [ In('Data', data) ]
+  -->
+  [ St_DataReceived(), Store(data) ]
+
+lemma ConfidentialityOfData:
+  all-traces
+  "All data #t. Send(data) @ #t ==> (Ex #t1. St_DataReceived() @ #t1 & #t < #t1)
+                                      & Not(Ex #t2. St_Error() @ #t2 & #t < #t2)"
 
 // rule Signed
 rule SignMessage:
