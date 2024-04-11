@@ -18,7 +18,12 @@ close to trivial for the attacker to force this situation.
 We have created our skeleton Tamarin code and begun to model the program.
 Since the first step in the SMBv1 connection is the TCP handshake, we started
 by modeling that. We have a file, "tcp.spthy" that includes the TCP handshake
-and its associated lemmas. We are planning to next implement the signed and
-unsigned communication between the server and client. By defult, Tamarin uses
-the Dolev-Yao adversary (page 16 of the manual), so we are planning to assume
-Dolev-Yao throughout the project, rather than define our own adversary.
+and its associated lemmas. By defult, Tamarin uses the Dolev-Yao adversary 
+(page 16 of the manual), so we are planning to assume Dolev-Yao throughout the 
+project, rather than define our own adversary.
+
+We also created an initial model for signing messages and revealing the signed
+messages. We have not yet written the lemmas to enforce and test the model, 
+so the next step will be to do that and see whether Tamarin can prove that SMBv1
+is indeed vulnerable to MitM attacks when it is possible to leave messages
+unsigned.
