@@ -74,6 +74,19 @@ lemma ConfidentialityOfData:
   "All data #t. Send(data) @ #t ==> (Ex #t1. St_DataReceived() @ #t1 & #t < #t1)
                                       & Not(Ex #t2. St_Error() @ #t2 & #t < #t2)"
 
+lemma SignedMessagesSecure:
+  all-traces
+  not(
+    Ex m, #t. Send(m) @ t
+      & K(m) @ #j
+  )
+
+lemma SignedMessagesReadable:
+  all-traces
+  (
+    All m, #t. Send(m) @ t ==> Ex A, s, #j. RevealSign(a, m, s) @ j
+  ) 
+
 // rule Signed
 rule SignMessage:
   let 
