@@ -12,13 +12,13 @@ builtins: signing, revealing-signing
 
 rule SessionSetupRequest:
   []
-  -->
+  --[ St_SessionEstablished() ]->
   [ St_AliceSessionSetup() ]
 
 // rule for session setup response
 rule SessionSetupResponse:
   [ St_AliceSessionSetup() ]
-  -->
+  --[ St_SessionEstablished() ]->
   [ St_SessionEstablished() ]
 
 // TCP connection
@@ -47,14 +47,19 @@ rule Finish:
   []
 
 rule DataTransfer:
-  [ St_SessionEstablished(), In(<'Data', data>) ]
-  -->
-  [ Out(<'Data',data>), St_DataSent() ]
+  [ St_SessionEstablished(), In(data) ]
+  --[Send(data)]->
+  [ Out(data), St_DataSent() ]
 
 rule DataReceived:
-  [ In(<'Data', data>) ]
+  [ In(data) ]
   -->
   [ St_DataReceived(), Store(data) ]
+
+rule MakeSecret:
+  [ Fr(~sk), In(m) ]
+  -->
+  [ !Ltk($A, ~sk), !Pk($A, pk(~sk)), Send(m) ]
 
 // rule Signed
 rule SignMessage:
@@ -97,12 +102,12 @@ lemma BulletProof:
 lemma SignedMessagesSecure:
   all-traces
   "not(
-    Ex m #t. Send(m) @ t
+    Ex m #t #j. Send(m) @ t
       & K(m) @ #j
   )"
 
 lemma SignedMessagesReadable:
   all-traces
-    "All m #t. Send(m) @ t ==> Ex A s #j. RevealSign(a, m, s) @ j"
+    "All m #t. Send(m) @ t ==> Ex A s #j. RevealSign(A, m, s) @ j"
 
 end
