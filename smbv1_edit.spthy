@@ -22,7 +22,7 @@ rule server_decide_true:
     -->
     [!ServerState($server, true), out(true)]
 
-rule server_decide_true:
+rule server_decide_false:
     [!ServerState($server)]
     -->
     [!ServerState($server, false), out(false)]
