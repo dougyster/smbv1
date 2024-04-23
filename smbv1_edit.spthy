@@ -3,29 +3,29 @@ theory SMBv12
 begin
 
 builtins: signing
-functions: true, false
+functions: true, false, undecided
 
 // Negotiation Phase
 // Attacker can observe these decisions
 rule client_decide_true:
-    [!ClientState($client)]
+    [!ClientState($client, undecided)]
     -->
-    [!ClientState($client, true), out(true)]
+    [!ClientState($client, true), Out(true)]
 
 rule client_decide_false:
-    [!ClientState($client)]
+    [!ClientState($client, undecided)]
     -->
-    [!ClientState($client, false), out(false)]
+    [!ClientState($client, false), Out(false)]
 
 rule server_decide_true:
-    [!ServerState($server)]
+    [!ServerState($server, undecided)]
     -->
-    [!ServerState($server, true), out(true)]
+    [!ServerState($server, true), Out(true)]
 
 rule server_decide_false:
-    [!ServerState($server)]
+    [!ServerState($server, undecided)]
     -->
-    [!ServerState($server, false), out(false)]
+    [!ServerState($server, false), Out(false)]
 
 // Decision making rules on whether or not messages are signed
 // Attacker can see the final decision
