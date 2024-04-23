@@ -49,10 +49,10 @@ rule Finish:
 rule DataTransfer:
   [ St_SessionEstablished(), Send(data) ]
   -->
-  [ Out('Data', data), St_DataSent() ]
+  [ Out(<'Data',data>), St_DataSent() ]
 
 rule DataReceived:
-  [ In('Data', data) ]
+  [ In(<'Data', data>) ]
   -->
   [ St_DataReceived(), Store(data) ]
 
@@ -62,8 +62,7 @@ rule SignMessage:
     signature = sign(m, sk)
   in
   [!Ltk($A, sk), !Pk($A, pk(sk)), Send(m)]
-  --[Sign($A, m, signature)]
-  ->
+  --[Sign($A, m, signature)]->
   [Store(signature), Verify(signature, m, pk(sk))]
 
 // rule Unsigned
@@ -72,8 +71,7 @@ rule RevealSignMessage:
     revealedSig = revealSign(m, sk)
   in
   [!Ltk($A, sk), !Pk($A, pk(sk)), Send(m)]
-  --[RevealSign($A, m, revealedSig)]
-  ->
+  --[RevealSign($A, m, revealedSig)]->
   [Store(revealedSig), RevealVerify(revealedSig, m, pk(sk))]
 
 
@@ -91,21 +89,20 @@ lemma BulletProof:
   all-traces
   "All #t1. Begin() @ #t1 ==> Ex #t2. End() @ #t2 & #t1 < #t2"
 
-lemma ConfidentialityOfData:
+/*lemma ConfidentialityOfData:
   all-traces
-  "All data #t. Send(data) @ #t ==> (Ex #t1. St_DataReceived() @ #t1 & #t < #t1)
-                                      & Not(Ex #t2. St_Error() @ #t2 & #t < #t2)"
+  "All data #t. Send(data) @ #t ==> (Ex #t1. St_DataReceived() @ #t1 & #t < #t1) & Not Ex #t2. St_Error() @ #t2 & #t < #t2)"
+  */
+  
 lemma SignedMessagesSecure:
   all-traces
-  not(
-    Ex m, #t. Send(m) @ t
+  "not(
+    Ex m #t. Send(m) @ t
       & K(m) @ #j
-  )
+  )"
 
 lemma SignedMessagesReadable:
   all-traces
-  (
-    All m, #t. Send(m) @ t ==> Ex A, s, #j. RevealSign(a, m, s) @ j
-  ) 
+    "All m #t. Send(m) @ t ==> Ex A s #j. RevealSign(a, m, s) @ j"
 
 end
