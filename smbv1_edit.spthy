@@ -63,7 +63,7 @@ rule request_read:
     [!Request($client, $server, ~skclient, pkclient), Out(<'request_to_read', $client, $server>)]
 
 rule sign_request:
-    [In(<'request_to_read', $client, $server>), !Request($client, $server, ~skclient, pkclient)]
+    [In(<'request_to_read', $client, $server>), !Request($client, $server, ~skclient, pkclient), In(<'decision', $client, $server, true>) ]
     -->
     [!SignedRequest($client, $server, sign(<"request_to_read", $client, $server>, ~skclient)), Out(sign(<"request_to_read", $client, $server>, ~skclient))]
 
@@ -83,7 +83,7 @@ rule grant_access_after_verification:
 
 
 rule grant_access_without_verification:
-    [!Request($client, $server, ~skclient, pkclient), In(<'request_to_read', $client, $server>)]
+    [!Request($client, $server, ~skclient, pkclient), In(<'request_to_read', $client, $server>), In(<'decision', $client, $server, false>)]
     --> 
     [Content($server, $client), Out(<'content_shared', $server, $client)]
 
