@@ -2,12 +2,6 @@
 theory SMBv1
 begin
 
-// builtins?
-// signing:
-// This theory models a signature scheme. 
-// It defines the function symbols sign/2, verify/3, pk/1, and true, which are related by the equation verify(sign(m,sk),m,pk(sk)) = true.
-// revealing-signing:
-// This theory models a message-revealing signature scheme. It defines the function symbols revealSign/2, revealVerify/3, getMessage/1, pk/1, and true, which are related by the equations revealVerify(revealSign(m,sk),m,pk(sk)) = true and getMessage(revealSign(m,sk)) = m.
 builtins: signing, revealing-signing
 
 rule SessionSetupRequest:

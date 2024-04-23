@@ -1,0 +1,92 @@
+// Tamarin file for modeling SMBv1
+theory SMBv12
+begin
+
+builtins: signing
+functions: true, false
+
+// Negotiation Phase
+// Attacker can observe these decisions
+rule client_decide_true:
+    [!ClientState($client)]
+    -->
+    [!ClientState($client, true), out(true)]
+
+rule client_decide_false:
+    [!ClientState($client)]
+    -->
+    [!ClientState($client, false), out(false)]
+
+rule server_decide_true:
+    [!ServerState($server)]
+    -->
+    [!ServerState($server, true), out(true)]
+
+rule server_decide_true:
+    [!ServerState($server)]
+    -->
+    [!ServerState($server, false), out(false)]
+
+// Decision making rules on whether or not messages are signed
+// Attacker can see the final decision
+rule both_decide_true:
+    [!ClientState($client, true), !ServerState($server, true)]
+    -->
+    [Out(<'decision', $client, $server, true>)]
+
+rule client_true_server_false:
+    [!ClientState($client, true), !ServerState($server, false)]
+    -->
+    [Out(<'decision', $client, $server, false>)]
+
+rule client_false_server_true:
+    [!ClientState($client, false), !ServerState($server, true)]
+    -->
+    [Out(<'decision', $client, $server, false>)]
+
+rule both_decide_false:
+    [!ClientState($client, false), !ServerState($server, false)]
+    -->
+    [Out(<'decision', $client, $server, false>)]
+
+// Resource Sharing
+
+// Defining public and private keys
+rule create_identities:
+    [Fr(~sk)]
+    -->
+    [!Identity($A, ~sk, pk(~sk)), Out(pk(~sk))]
+
+rule request_read:
+    [!Identity($client, ~skclient, pkclient), !Identity($server, ~skserver, pkserver)]
+    -->
+    [!Request($client, $server, ~skclient, pkclient), Out(<'request_to_read', $client, $server>)]
+
+rule sign_request:
+    [In(<'request_to_read', $client, $server>), !Request($client, $server, ~skclient, pkclient)]
+    -->
+    [!SignedRequest($client, $server, sign(<"request_to_read", $client, $server>, ~skclient)), Out(sign(<"request_to_read", $client, $server>, ~skclient))]
+
+// Rule to handle the server receiving the signed request
+rule verify_request:
+    let signed_msg = sign(<"request_to_read", $client, $server>, ~skclient)
+    in 
+    [In(signed_msg), !Identity($server, ~skserver, pkserver), !SignedRequest($client, $server, signed_msg)]
+    -->
+    [!VerifiedRequest($server, $client), Out(<'signature_verified', $client, $server>)]
+    where verify(signed_msg, <"request_to_read", $client, $server>, pk(~skclient)) = true
+
+rule grant_access_after_verification:
+    [!VerifiedRequest($server, $client), In(<'signature_verified', $client, $server>)]
+    --> 
+    [Content($server, $client), Out(<'content_shared', $server, $client)]
+
+
+rule grant_access_without_verification:
+    [!Request($client, $server, ~skclient, pkclient), In(<'request_to_read', $client, $server>)]
+    --> 
+    [Content($server, $client), Out(<'content_shared', $server, $client)]
+
+
+end
+
