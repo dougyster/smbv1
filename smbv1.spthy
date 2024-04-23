@@ -11,13 +11,13 @@ begin
 builtins: signing, revealing-signing
 
 rule SessionSetupRequest:
-  [ Out('SessionSetupRequest') ]
+  []
   -->
   [ St_AliceSessionSetup() ]
 
 // rule for session setup response
 rule SessionSetupResponse:
-  [ St_AliceSessionSetup(), In('SessionSetupResponse') ]
+  [ St_AliceSessionSetup() ]
   -->
   [ St_SessionEstablished() ]
 
@@ -47,7 +47,7 @@ rule Finish:
   []
 
 rule DataTransfer:
-  [ St_SessionEstablished(), Send(data) ]
+  [ St_SessionEstablished(), In(<'Data', data>) ]
   -->
   [ Out(<'Data',data>), St_DataSent() ]
 
