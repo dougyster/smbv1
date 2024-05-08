@@ -58,20 +58,20 @@ rule Finish:
 rule AliceGeneratesKeyPair:
   [ St_FullSessionEstablished(), St_TCPEstablished(), Fr(~sk) ]
   -->
-  [Identity($A, ~sk, pk(~sk))]
+  [!Identity($A, ~sk, pk(~sk))]
 
  rule AliceChoosesMessage:
-   [ Identity($A, ~sk, pk(~sk)) ]
-   -->
-   [ Out('Hi') ]
+   [ !Identity($A, ~sk, pk(~sk)) ]
+   --[ St_AliceChoosesMessage() ]->
+   [ Out('Hi'), St_AliceChoosesMessage() ]
 
  rule AliceSignsMessage:
-   [ Identity($A, ~sk, pk(~sk)), In('Hi') ]
-   --[ AliceSignsMessage() ]->
-   [ Out(sign('Hi', ~sk)) ]
+   [ !Identity($A, ~sk, pk(~sk)), In('Hi'), St_AliceChoosesMessage() ]
+   --[ St_AliceSentMessage() ]->
+   [ Out(sign('Hi', ~sk)), St_AliceSentMessage() ]
 
  rule BobVerifiesMessage:
-  [ In(sign('Hi', ~sk)), Identity($A, ~sk, pk(~sk)) ]
+  [ In(sign('Hi', ~sk)), !Identity($A, ~sk, pk(~sk)), St_AliceSentMessage() ]
    --[ St_BobVerified() ]->
    [ Out(verify(sign('Hi', ~sk), 'Hi', pk(~sk))), St_BobVerified() ]
  
@@ -80,18 +80,12 @@ rule AliceGeneratesKeyPair:
   --[ St_BobReceived() ]->
   [ St_BobReceived() ]
 
- rule AliceNoSign:
-  [ Identity($A, ~sk, pk(~sk)) ]
-  --[ AliceNotSigning() ]->
-  [ Out('Hi') ]
-
  rule BobReceivesUnsigned:
-   [ In('Hi') ]
+   [ In('Hi'), St_FullSessionEstablished() ]
    --[ St_BobReceived() ]->
    [ St_BobReceived() ]
 
 
-// lemma that 
 // ensure session is established after setup
 lemma SessionEstablished:
   exists-trace
@@ -101,6 +95,19 @@ lemma SessionEstablished:
 lemma BobReceived:
   exists-trace
   "Ex #t. St_BobReceived() @ #t"
+
+// Bob has received a signed packet from Alice
+ lemma SignBobReceived:
+   exists-trace
+   "Ex #t #j. St_BobVerified() @ t 
+     & St_AliceSentMessage() @ j"
+ 
+  // "Ex #t. St_BobReceived() ^ not(Ex. #t'. (St_AliceSentMessage() @ #t') @ #t"
+
+// Bob has received a message, but Alice hasn't signed
+lemma UnsignedBobReceived:
+exists-trace
+"Ex #t. St_BobReceived() @ t"
 
 // lemma Works:
 //   exists-trace
