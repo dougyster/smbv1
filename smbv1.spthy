@@ -111,7 +111,7 @@ lemma SessionEstablished:
   exists-trace
   "Ex #t. St_FullSessionEstablished() @ #t"
 
-// ensure that Bob gets and verifies a messages
+// ensure that Bob gets a message, regardless of signing
 lemma BobReceived:
   exists-trace
   "Ex #t. St_BobReceived() @ #t"
