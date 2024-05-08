@@ -40,6 +40,7 @@ rule FullSessionSetup:
  * Models Alice and Bob setting up a TCP
  * connection via SYN-SYNACK-ACK handshake.
 */
+
 rule Syn:
   [ St_FullSessionEstablished() ]
   --[ Begin() ]->
@@ -60,11 +61,13 @@ rule Finish:
   --[ End() ]->
   [ St_TCPEstablished() ]
 
+
 /* MESSAGE SIGNING PROTOCOL
  *
  * Models Alice signing and sending a message,
  * as well as Bob receiving a signed message from Alice.
 */
+
 // Alice generates a fresh public-private key pair for signing
 rule AliceGeneratesKeyPair:
   [ St_FullSessionEstablished(), St_TCPEstablished(), Fr(~sk) ]
@@ -89,12 +92,14 @@ rule AliceGeneratesKeyPair:
    --[ St_BobVerified() ]->
    [ Out(verify(sign('Hi', ~sk), 'Hi', pk(~sk))), St_BobVerified() ]
  
+
  /* RECEIPT OF MESSAGES
  *
  * Models Bob receiving a message. Since he is signing-agnostic,
  * he does not care about whether the message is signed, and the confirmation
  * state is the same in both cases.
 */
+
  rule BobReceivedSigned:
   [ St_BobVerified() ]
   --[ St_BobReceived() ]->
@@ -105,6 +110,8 @@ rule AliceGeneratesKeyPair:
    --[ St_BobReceived() ]->
    [ St_BobReceived() ]
 
+
+/* LEMMAS */
 
 // ensure session is established after setup
 lemma SessionEstablished:
