@@ -4,37 +4,48 @@ begin
 
 builtins: signing, revealing-signing
 
+/* SESSION SETUP
+ *
+ * Models Alice and Bob setting up a connection
+ * with a simple request-response handshake
+*/
+
+// initial session setup request
 rule SessionSetupRequest:
   []
   --[ St_SessionEstablished() ]->
   [ St_AliceSessionSetup(), St_BobSessionSetup() ]
 
-// rule for Alice's session setup response
+// Alice joining session
 rule AliceSessionSetupResponse:
   [ St_AliceSessionSetup() ]
   --[ St_SessionEstablished() ]->
   [ St_AliceSessionEstablished() ]
 
-
-// rule for Bob's session setup response
+// Bob joining session
 rule BobSessionSetupResponse:
   [ St_BobSessionSetup() ]
   --[ St_SessionEstablished() ]->
   [ St_BobSessionEstablished() ]
 
-// rule to affirm 2-person session setup
+// Full session establishment (both participants)
 rule FullSessionSetup:
   [ St_AliceSessionEstablished(), St_BobSessionEstablished() ]
   --[ St_FullSessionEstablished() ]->
   [ St_FullSessionEstablished() ]
 
 
-rule Sync:
+/* TCP SETUP
+ *
+ * Models Alice and Bob setting up a TCP
+ * connection via SYN-SYNACK-ACK handshake.
+*/
+rule Syn:
   [ St_FullSessionEstablished() ]
   --[ Begin() ]->
   [ St_AliceWait(), Out('SYN') ]
 
-rule SyncAck:
+rule SynAck:
   [ In('SYN') ]
   -->
   [ St_BobWait(), Out('SYNACK') ]
@@ -49,28 +60,41 @@ rule Finish:
   --[ End() ]->
   [ St_TCPEstablished() ]
 
-// Session has been setup, TCP has been established 
-
+/* MESSAGE SIGNING PROTOCOL
+ *
+ * Models Alice signing and sending a message,
+ * as well as Bob receiving a signed message from Alice.
+*/
+// Alice generates a fresh public-private key pair for signing
 rule AliceGeneratesKeyPair:
   [ St_FullSessionEstablished(), St_TCPEstablished(), Fr(~sk) ]
   -->
   [!Identity($A, ~sk, pk(~sk))]
 
+// Alice chooses a message to send (in this case, a simple greeting)
  rule AliceChoosesMessage:
    [ !Identity($A, ~sk, pk(~sk)) ]
    --[ St_AliceChoosesMessage() ]->
    [ Out('Hi'), St_AliceChoosesMessage() ]
 
+// Alice signs the message and sends it out
  rule AliceSignsMessage:
    [ !Identity($A, ~sk, pk(~sk)), In('Hi'), St_AliceChoosesMessage() ]
    --[ St_AliceSentMessage() ]->
    [ Out(sign('Hi', ~sk)), St_AliceSentMessage() ]
 
+// Bob verifies Alice's signature
  rule BobVerifiesMessage:
   [ In(sign('Hi', ~sk)), !Identity($A, ~sk, pk(~sk)), St_AliceSentMessage() ]
    --[ St_BobVerified() ]->
    [ Out(verify(sign('Hi', ~sk), 'Hi', pk(~sk))), St_BobVerified() ]
  
+ /* RECEIPT OF MESSAGES
+ *
+ * Models Bob receiving a message. Since he is signing-agnostic,
+ * he does not care about whether the message is signed, and the confirmation
+ * state is the same in both cases.
+*/
  rule BobReceivedSigned:
   [ St_BobVerified() ]
   --[ St_BobReceived() ]->
