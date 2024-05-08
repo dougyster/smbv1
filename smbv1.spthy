@@ -126,7 +126,7 @@ lemma BobReceived:
 // Bob has received a signed packet from Alice
  lemma SignBobReceived:
    exists-trace
-   "Ex #t #j. St_BobVerified() @ t 
+   "Ex #t #j. St_BobReceived() @ t 
      & St_AliceSentMessage() @ j"
 
 end
