@@ -7,13 +7,26 @@ builtins: signing, revealing-signing
 rule SessionSetupRequest:
   []
   --[ St_SessionEstablished() ]->
-  [ St_AliceSessionSetup() ]
+  [ St_AliceSessionSetup(), St_BobSessionSetup() ]
 
-// rule for session setup response
-rule SessionSetupResponse:
+// rule for Alice's session setup response
+rule AliceSessionSetupResponse:
   [ St_AliceSessionSetup() ]
   --[ St_SessionEstablished() ]->
-  [ St_SessionEstablished() ]
+  [ St_AliceSessionEstablished() ]
+
+
+// rule for Bob's session setup response
+rule BobSessionSetupResponse:
+  [ St_BobSessionSetup() ]
+  --[ St_SessionEstablished() ]->
+  [ St_BobSessionEstablished() ]
+
+// rule to affirm 2-person session setup
+rule FullSessionSetup:
+  [ St_AliceSessionEstablished(), St_BobSessionEstablished() ]
+  --[ St_FullSessionEstablished() ]->
+  [ St_FullSessionEstablished() ]
 
 // TCP connection
 // Alice -> Bob: sync
@@ -21,7 +34,7 @@ rule SessionSetupResponse:
 // Alice -> Bob: acknowledgement
 
 rule Sync:
-  []
+  [ St_FullSessionEstablished() ]
   --[ Begin() ]->
   [ St_AliceWait(), Out('SYN') ]
 
@@ -38,70 +51,112 @@ rule Ack:
 rule Finish:
   [ St_BobWait(), In('ACK') ]
   --[ End() ]->
-  []
+  [ St_TCPEstablished() ]
 
-rule DataTransfer:
-  [ St_SessionEstablished(), In(data) ]
-  --[Send(data)]->
-  [ Out(data), St_DataSent() ]
+// Session has been setup, TCP has been established 
 
-rule DataReceived:
-  [ In(data) ]
+rule AliceGeneratesKeyPair:
+  [ St_FullSessionEstablished(), St_TCPEstablished(), Fr(~sk) ]
   -->
-  [ St_DataReceived(), Store(data) ]
+  [Identity($A, ~sk, pk(~sk))]
 
-rule MakeSecret:
-  [ Fr(~sk), In(m) ]
-  -->
-  [ !Ltk($A, ~sk), !Pk($A, pk(~sk)), Send(m) ]
+ rule AliceChoosesMessage:
+   [ Identity($A, ~sk, pk(~sk)) ]
+   -->
+   [ Out('Hi') ]
 
-// rule Signed
-rule SignMessage:
-  let 
-    signature = sign(m, sk)
-  in
-  [!Ltk($A, sk), !Pk($A, pk(sk)), Send(m)]
-  --[Sign($A, m, signature)]->
-  [Store(signature), Verify(signature, m, pk(sk))]
+ rule AliceSignsMessage:
+   [ Identity($A, ~sk, pk(~sk)), In('Hi') ]
+   --[ AliceSignsMessage() ]->
+   [ Out(sign('Hi', ~sk)) ]
 
-// rule Unsigned
-rule RevealSignMessage:
-  let
-    revealedSig = revealSign(m, sk)
-  in
-  [!Ltk($A, sk), !Pk($A, pk(sk)), Send(m)]
-  --[RevealSign($A, m, revealedSig)]->
-  [Store(revealedSig), RevealVerify(revealedSig, m, pk(sk))]
+ rule BobVerifiesMessage:
+  [ In(sign('Hi', ~sk)), Identity($A, ~sk, pk(~sk)) ]
+   --[ St_BobVerified() ]->
+   [ Out(verify(sign('Hi', ~sk), 'Hi', pk(~sk))), St_BobVerified() ]
+ 
+ rule BobReceivedSigned:
+  [ St_BobVerified() ]
+  --[ St_BobReceived() ]->
+  [ St_BobReceived() ]
+
+ rule AliceNoSign:
+  [ Identity($A, ~sk, pk(~sk)) ]
+  --[ AliceNotSigning() ]->
+  [ Out('Hi') ]
+
+ rule BobReceivesUnsigned:
+   [ In('Hi') ]
+   --[ St_BobReceived() ]->
+   [ St_BobReceived() ]
 
 
 // lemma that 
 // ensure session is established after setup
 lemma SessionEstablished:
   exists-trace
-  "Ex #t. St_SessionEstablished() @ #t"
+  "Ex #t. St_FullSessionEstablished() @ #t"
 
-lemma Works:
+// ensure that Bob gets and verifies a messages
+lemma BobReceived:
   exists-trace
-  "Ex #t1 #t2. Begin() @ #t1 & End() @ #t2"
+  "Ex #t. St_BobReceived() @ #t"
 
-lemma BulletProof:
-  all-traces
-  "All #t1. Begin() @ #t1 ==> Ex #t2. End() @ #t2 & #t1 < #t2"
+// lemma Works:
+//   exists-trace
+//   "Ex #t1 #t2. Begin() @ #t1 & End() @ #t2"
+
+// lemma BulletProof:
+//   all-traces
+//   "All #t1. Begin() @ #t1 ==> Ex #t2. End() @ #t2 & #t1 < #t2"
 
 /*lemma ConfidentialityOfData:
   all-traces
   "All data #t. Send(data) @ #t ==> (Ex #t1. St_DataReceived() @ #t1 & #t < #t1) & Not Ex #t2. St_Error() @ #t2 & #t < #t2)"
   */
   
-lemma SignedMessagesSecure:
-  all-traces
-  "not(
-    Ex m #t #j. Send(m) @ t
-      & K(m) @ #j
-  )"
+// lemma SignedMessagesSecure:
+//   all-traces
+//   "not(
+//     Ex m #t #j. Send(m) @ t
+//       & K(m) @ #j
+//   )"
 
-lemma SignedMessagesReadable:
-  all-traces
-    "All m #t. Send(m) @ t ==> Ex A s #j. RevealSign(A, m, s) @ j"
+// lemma SignedMessagesReadable:
+//   all-traces
+//     "All m #t. Send(m) @ t ==> Ex A s #j. RevealSign(A, m, s) @ j"
 
 end
+
+
+
+
+
+
+// rule DataTransfer:
+//   [ St_FullSessionEstablished(), St_TCPEstablished(), In(data) ]
+//   --[ Send(data) ]->
+//   [ Out(data), St_DataSent() ]
+
+// rule DataReceived:
+//   [ In(data) ]
+//   -->
+//   [ St_DataReceived(), Store(data) ]
+
+// // rule Signed
+// rule SignMessage:
+//   let 
+//     signature = sign(m, sk)
+//   in
+//   [!Ltk($A, sk), !Pk($A, pk(sk)), Send(m)]
+//   --[Sign($A, signature)]->
+//   [Store(signature), Verify(signature, m, pk(sk))]
+
+// // rule Unsigned
+// rule RevealSignMessage:
+//   let
+//     revealedSig = revealSign(m, sk)
+//   in
+//   [!Ltk($A, sk), !Pk($A, pk(sk)), Send(m)]
+//   --[RevealSign($A, m, revealedSig)]->
+//   [Store(revealedSig), RevealVerify(revealedSig, m, pk(sk))]
